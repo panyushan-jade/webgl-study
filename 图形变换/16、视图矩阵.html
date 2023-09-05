@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>webgl</title>
+</head>
+<style>
+    html, body {
+margin: 0;
+padding: 0;
+overflow: hidden;
+height: 100%;
+}
+</style>
+<body>
+    <canvas id="canvas"></canvas>
+</body>
+<script id="vertexShader" type="x-shader/x-vertex">
+    attribute vec4 a_Position;
+    // 视图矩阵
+    uniform mat4 u_ViewMatrix;
+    void main(){
+        gl_Position = u_ViewMatrix*a_Position;
+    }
+</script>
+<!-- 片元着色器：进行逐片元处理 如光照 -->
+<script id="fragmentShader" type="x-shader/x-fragment">
+    void main(){
+        gl_FragColor = vec4(1,1,0,1);
+    }
+</script>
+
+<script type="module">
+    // 正交旋转矩阵的逆矩阵就是其转置矩阵
+    import { Matrix4,Vector3,Quaternion } from 'https://unpkg.com/three/build/three.module.js';
+
+    const canvas = document.querySelector('#canvas');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const gl = canvas.getContext('webgl');
+    
+    const vsSource = document.querySelector('#vertexShader').textContent;
+    const fsSource = document.querySelector('#fragmentShader').textContent;
+
+    initShaders(gl,vsSource,fsSource)
+    const verticeLib = [
+         1.0, 1.0, 1.0,
+        -1.0, 1.0, 1.0,
+        -1.0,-1.0, 1.0,
+         1.0,-1.0, 1.0,
+         1.0,-1.0,-1.0,
+         1.0, 1.0,-1.0,
+        -1.0, 1.0,-1.0,
+        -1.0,-1.0,-1.0
+    ];
+    const indices = [
+        0,1,
+        1,2,
+        2,3,
+        3,0,
+
+        0,5,
+        1,6,
+        2,7,
+        3,4,
+
+        4,5,
+        5,6,
+        6,7,
+        7,4
+    ];
+
+    const arr = [];
+    indices.forEach( n => {
+        const i = n *3;
+        arr.push(
+            verticeLib[i]/5,
+            verticeLib[i+1]/5,
+            verticeLib[i+2]/5
+        )
+    });
+    const vertexs = new Float32Array(arr)
+    console.log('arr: ', arr);
+
+    const vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER,vertexs,gl.STATIC_DRAW)
+    const a_Position = gl.getAttribLocation(gl.program,'a_Position');
+    gl.vertexAttribPointer(a_Position,3,gl.FLOAT,false,0,0);
+    gl.enableVertexAttribArray(a_Position);
+
+    const u_ViewMatrix = gl.getUniformLocation(gl.program,'u_ViewMatrix');
+    const viewMatrix = new Matrix4().lookAt(
+        new Vector3(0.1,0.2,0.5),
+        new Vector3(0,0,0),
+        new Vector3(0,1,0),
+    );
+    gl.uniformMatrix4fv(u_ViewMatrix,false,viewMatrix.elements);
+
+    
+
+    gl.clearColor(0,0,0,1)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    gl.drawArrays(gl.LINES,0,indices.length)
+
+
+    function initShaders(gl,vsSource,fsSource){
+        // 创建程序对象
+        const program = gl.createProgram(); 
+        // 创建着色器对象
+        const vertexShader = loadShader(gl,gl.VERTEX_SHADER,vsSource); 
+        const fragmentShader = loadShader(gl,gl.FRAGMENT_SHADER,fsSource);
+        // 把着色器对象装载到程序对象中
+        gl.attachShader(program,vertexShader); 
+        gl.attachShader(program,fragmentShader);
+        // 连接webgl上下文对象和程序对象
+        gl.linkProgram(program);
+        // 启用程序对象
+        gl.useProgram(program);
+        // 将程序对象挂到上下文对象上（不写这一步也可以，这里是后续要用到program 挂载到gl上方便获取）
+        gl.program = program;
+        return true
+    }
+
+    function loadShader(gl,type,source){
+        // 根据着色器类型，建立着色器对象
+        const shader = gl.createShader(type)
+        // 将着色器文件传入着色器对象中
+        gl.shaderSource(shader,source)
+        // 编译着色器对象
+        gl.compileShader(shader)
+        // 返回着色器对象
+        return shader;
+    }
+
+</script>
+
+</html>
