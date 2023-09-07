@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>纹理对象</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+
+  <body>
+    <canvas id="canvas"></canvas>
+    <script id="vertexShader" type="x-shader/x-vertex">
+      attribute vec4 a_Position;
+      attribute vec2 a_Pin;
+      varying vec2 v_Pin;
+      void main(){
+        gl_Position = a_Position;
+        v_Pin=a_Pin;
+      }
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+      precision mediump float;
+      uniform sampler2D u_Sampler;
+      uniform sampler2D u_Pattern;
+      varying vec2 v_Pin;
+      void main(){
+        vec4 o=texture2D(u_Sampler,v_Pin);
+        vec4 p=texture2D(u_Pattern,v_Pin);
+        gl_FragColor=p*o;
+      }
+    </script>
+    <script type="module">
+      import { Matrix4 } from "https://unpkg.com/three/build/three.module.js";
+      import { initShaders, imgPromise } from "../utils/index.js";
+      const canvas = document.getElementById("canvas");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      const gl = canvas.getContext("webgl");
+
+      const vsSource = document.getElementById("vertexShader").innerText;
+      const fsSource = document.getElementById("fragmentShader").innerText;
+      initShaders(gl, vsSource, fsSource);
+      gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+      //数据源
+      const source = new Float32Array([
+        -0.4, 0.8, 0, 1, -0.4, -0.8, 0, 0.0, 0.4, 0.8, 1.0, 1, 0.4, -0.8, 1.0,
+        0.0,
+      ]);
+      const FSIZE = source.BYTES_PER_ELEMENT;
+      //元素字节数
+      const elementBytes = source.BYTES_PER_ELEMENT;
+      //系列尺寸
+      const posSize = 2;
+      const pinSize = 2;
+      //类目尺寸
+      const categorySize = posSize + pinSize;
+      //类目字节数
+      const categoryBytes = categorySize * elementBytes;
+      //系列字节索引位置
+      const posByteIndex = 0;
+      const pinByteIndex = posSize * elementBytes;
+      //顶点总数
+      const sourceSize = source.length / categorySize;
+
+      const sourceBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, sourceBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, source, gl.STATIC_DRAW);
+
+      const a_Position = gl.getAttribLocation(gl.program, "a_Position");
+      gl.vertexAttribPointer(
+        a_Position,
+        posSize,
+        gl.FLOAT,
+        false,
+        categoryBytes,
+        posByteIndex
+      );
+      gl.enableVertexAttribArray(a_Position);
+
+      const a_Pin = gl.getAttribLocation(gl.program, "a_Pin");
+      gl.vertexAttribPointer(
+        a_Pin,
+        pinSize,
+        gl.FLOAT,
+        false,
+        categoryBytes,
+        pinByteIndex
+      );
+      gl.enableVertexAttribArray(a_Pin);
+
+
+      
+      const dressImage = new Image();
+      dressImage.src = "./images/dress.jpg";
+      const partternImage = new Image();
+      partternImage.src = "./images/pattern1.jpg";
+      const u_Sampler = gl.getUniformLocation(gl.program, "u_Sampler");
+      const u_Pattern = gl.getUniformLocation(gl.program, "u_Pattern");
+      const samplerArr = [u_Sampler,u_Pattern]
+
+      Promise.all([
+        imgPromise(dressImage),
+        imgPromise(partternImage),
+      ]).then((images) => {
+        for(let i = 0; i< images.length ; i++){
+          loadTexTure(samplerArr[i],images[i],i)
+        }
+        render()
+      })
+
+      function loadTexTure(sampler,image,unit){
+          const texture = gl.createTexture();
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+          gl.activeTexture(gl[`TEXTURE${unit}`]);
+          gl.bindTexture(gl.TEXTURE_2D, texture) //绑定纹理对象
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR) //配置纹理对象参数
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image) //纹理图像分配给纹理对象
+          gl.uniform1i(sampler, unit) //纹理单元编号传给片元着色器中uniform变量
+      }
+      //渲染
+      function render() {
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, sourceSize);
+      }
+    </script>
+  </body>
+</html>

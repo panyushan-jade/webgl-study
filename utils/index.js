@@ -1,4 +1,4 @@
-export function initShaders(gl,vsSource,fsSource){
+function initShaders(gl,vsSource,fsSource){
     // 创建程序对象
     const program = gl.createProgram(); 
     // 创建着色器对象
@@ -25,4 +25,17 @@ function loadShader(gl,type,source){
     gl.compileShader(shader)
     // 返回着色器对象
     return shader;
+}
+
+function imgPromise(img){
+    return new Promise((resolve) => {
+        img.onload = function(){
+            resolve(img)
+        }
+    })
+}
+
+export {
+    initShaders,
+    imgPromise
 }
